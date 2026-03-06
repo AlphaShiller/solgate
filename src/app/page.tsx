@@ -1,13 +1,19 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, Suspense } from "react";
 import { useWallet, useConnection } from "@solana/wallet-adapter-react";
+import { useSearchParams } from "next/navigation";
 import { WalletModal, WalletModalButton, useWalletModal } from "@/components/WalletModal";
 import PostFeed from "@/components/PostFeed";
 import CreatePostForm from "@/components/CreatePostForm";
 import { useSubscriptions } from "@/hooks/useSubscriptions";
 import { COLORS } from "@/utils/colors";
 import { Post, TierName } from "@/types";
+import { loadStripe } from "@stripe/stripe-js";
+
+const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+  ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
+  : null;
 import {
   PublicKey,
   Transaction,
@@ -202,6 +208,77 @@ function BlinkButton({ product, onPurchase, openWalletModal }: { product: Produc
   );
 }
 
+function StripeCheckoutButton({ tierName, price }: { tierName: string; price: number }) {
+  const [email, setEmail] = useState("");
+  const [showEmail, setShowEmail] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleStripeCheckout = async () => {
+    if (!email.includes("@")) { setError("Enter a valid email"); return; }
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tierName, email }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error(data.error || "Failed to create checkout");
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Checkout failed";
+      setError(msg);
+      setLoading(false);
+    }
+  };
+
+  if (!showEmail) {
+    return (
+      <button
+        onClick={() => setShowEmail(true)}
+        className="w-full py-2.5 px-4 rounded-lg font-semibold text-sm cursor-pointer transition-all hover:opacity-80 border"
+        style={{ backgroundColor: "transparent", color: COLORS.lightText, borderColor: "#2D2550" }}
+      >
+        Pay with Card — ${price.toFixed(2)}/mo
+      </button>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <input
+        type="email"
+        placeholder="your@email.com"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+        style={{ backgroundColor: "#150F28", color: COLORS.lightText, border: "1px solid #2D2550" }}
+      />
+      <button
+        onClick={handleStripeCheckout}
+        disabled={loading}
+        className="w-full py-2.5 px-4 rounded-lg font-semibold text-sm text-white cursor-pointer disabled:opacity-50"
+        style={{ backgroundColor: "#635BFF" }}
+      >
+        {loading ? "Redirecting to Stripe..." : `Checkout — $${price.toFixed(2)}/mo`}
+      </button>
+      <button
+        onClick={() => setShowEmail(false)}
+        className="w-full text-xs cursor-pointer"
+        style={{ color: COLORS.midGray }}
+      >
+        Cancel
+      </button>
+      {error && <p className="text-xs text-red-400">{error}</p>}
+    </div>
+  );
+}
+
 function ProductCard({ product, onPurchase, openWalletModal }: { product: Product; onPurchase: (p: Product, sig?: string) => void; openWalletModal: () => void }) {
   return (
     <div className="rounded-xl p-5 border transition-all hover:border-purple-500" style={{ backgroundColor: COLORS.cardBg, borderColor: "#2D2550" }}>
@@ -217,7 +294,19 @@ function ProductCard({ product, onPurchase, openWalletModal }: { product: Produc
       ) : (
         <div className="mb-3" />
       )}
-      <BlinkButton product={product} onPurchase={onPurchase} openWalletModal={openWalletModal} />
+      {product.price > 0 ? (
+        <div className="space-y-2">
+          <StripeCheckoutButton tierName={product.name} price={product.price} />
+          <div className="flex items-center gap-2">
+            <div className="flex-1 h-px" style={{ backgroundColor: "#2D2550" }} />
+            <span className="text-xs" style={{ color: COLORS.midGray }}>or</span>
+            <div className="flex-1 h-px" style={{ backgroundColor: "#2D2550" }} />
+          </div>
+          <BlinkButton product={product} onPurchase={onPurchase} openWalletModal={openWalletModal} />
+        </div>
+      ) : (
+        <BlinkButton product={product} onPurchase={onPurchase} openWalletModal={openWalletModal} />
+      )}
     </div>
   );
 }
@@ -250,11 +339,19 @@ function TierCard({ tier, featured, openWalletModal, onSubscribed, isSubscribed 
           &#10003; Subscribed
         </div>
       ) : (
-        <BlinkButton
-          product={{ name: tier.name, price: tier.price, priceSol: tier.priceSol, type: "monthly" }}
-          onPurchase={(_, sig) => { if (sig) onSubscribed(tier.name as TierName, sig); }}
-          openWalletModal={openWalletModal}
-        />
+        <div className="space-y-2">
+          <StripeCheckoutButton tierName={tier.name} price={tier.price} />
+          <div className="flex items-center gap-2">
+            <div className="flex-1 h-px" style={{ backgroundColor: "#2D2550" }} />
+            <span className="text-xs" style={{ color: COLORS.midGray }}>or</span>
+            <div className="flex-1 h-px" style={{ backgroundColor: "#2D2550" }} />
+          </div>
+          <BlinkButton
+            product={{ name: tier.name, price: tier.price, priceSol: tier.priceSol, type: "monthly" }}
+            onPurchase={(_, sig) => { if (sig) onSubscribed(tier.name as TierName, sig); }}
+            openWalletModal={openWalletModal}
+          />
+        </div>
       )}
     </div>
   );
@@ -388,16 +485,31 @@ function CreatorDashboard({ onPostCreated }: { onPostCreated: (post: Post) => vo
 
 // --- Main App ---
 
-export default function SolGateApp() {
+function SolGateAppInner() {
   const [view, setView] = useState<"storefront" | "feed" | "dashboard">("storefront");
   const [purchases, setPurchases] = useState<{ id: string; signature?: string }[]>([]);
   const [posts, setPosts] = useState<Post[]>(INITIAL_POSTS);
+  const [canceledNotice, setCanceledNotice] = useState(false);
   const walletModal = useWalletModal();
   const { publicKey } = useWallet();
+  const searchParams = useSearchParams();
   const creator = creators[0];
 
   const walletAddress = publicKey ? publicKey.toBase58() : null;
-  const { subscribedTier, subscribe, canViewTier } = useSubscriptions(walletAddress);
+  const { subscribedTier, subscribe, canViewTier, refreshStripeSubscription } = useSubscriptions(walletAddress);
+
+  // Refresh Stripe subscription on mount (in case returning from /success)
+  useEffect(() => {
+    refreshStripeSubscription();
+  }, [refreshStripeSubscription]);
+
+  // Handle ?canceled=true from Stripe
+  useEffect(() => {
+    if (searchParams.get("canceled") === "true") {
+      setCanceledNotice(true);
+      setTimeout(() => setCanceledNotice(false), 5000);
+    }
+  }, [searchParams]);
 
   const handlePurchase = (product: Product, signature?: string) => {
     if (product.id) {
@@ -451,6 +563,12 @@ export default function SolGateApp() {
             <div className="rounded-lg p-3 text-center text-xs" style={{ backgroundColor: "#2D1B69", color: "#C4B5FD" }}>
               You are on <strong>Solana Devnet</strong> — all transactions use test SOL. Use the Dashboard to airdrop free test SOL.
             </div>
+
+            {canceledNotice && (
+              <div className="rounded-lg p-3 text-center text-sm" style={{ backgroundColor: "#3B1B1B", border: "1px solid #DC2626", color: "#FCA5A5" }}>
+                Payment was canceled. You can try again anytime.
+              </div>
+            )}
 
             {/* Creator header */}
             <div className="flex items-center gap-4">
@@ -549,5 +667,13 @@ export default function SolGateApp() {
         </p>
       </footer>
     </div>
+  );
+}
+
+export default function SolGateApp() {
+  return (
+    <Suspense fallback={<div className="min-h-screen" style={{ backgroundColor: COLORS.darkBg }} />}>
+      <SolGateAppInner />
+    </Suspense>
   );
 }
