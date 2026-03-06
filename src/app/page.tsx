@@ -241,8 +241,8 @@ function StripeCheckoutButton({ tierName, price }: { tierName: string; price: nu
     return (
       <button
         onClick={() => setShowEmail(true)}
-        className="w-full py-2.5 px-4 rounded-lg font-semibold text-sm cursor-pointer transition-all hover:opacity-80 border"
-        style={{ backgroundColor: "transparent", color: COLORS.lightText, borderColor: "#2D2550" }}
+        className="w-full py-2.5 px-4 rounded-lg font-semibold text-sm cursor-pointer transition-all hover:opacity-90"
+        style={{ backgroundColor: "#635BFF", color: "#FFFFFF" }}
       >
         Pay with Card — ${price.toFixed(2)}/mo
       </button>
