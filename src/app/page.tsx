@@ -309,7 +309,7 @@ function CreatorDashboard() {
                 <p className="text-xs mt-1" style={{ color: COLORS.lightText }}>Balance: {balance.toFixed(4)} SOL</p>
               )}
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <button
                 onClick={fetchBalance}
                 className="px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer"
@@ -323,8 +323,17 @@ function CreatorDashboard() {
                 className="px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer disabled:opacity-50"
                 style={{ backgroundColor: COLORS.purple, color: "white" }}
               >
-                {airdropStatus === "loading" ? "Airdropping..." : airdropStatus === "success" ? "1 SOL Added!" : airdropStatus === "error" ? "Rate Limited — Try Again" : "Airdrop 1 SOL (Devnet)"}
+                {airdropStatus === "loading" ? "Airdropping..." : airdropStatus === "success" ? "1 SOL Added!" : airdropStatus === "error" ? "Rate Limited" : "Airdrop 1 SOL"}
               </button>
+              <a
+                href={`https://faucet.solana.com/?address=${publicKey.toBase58()}&cluster=devnet`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer inline-flex items-center"
+                style={{ backgroundColor: "#1A1333", color: COLORS.lightText, border: "1px solid #2D2550" }}
+              >
+                Web Faucet ↗
+              </a>
             </div>
           </div>
         </div>
