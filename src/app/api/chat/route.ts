@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
     const client = new Anthropic({ apiKey });
 
     const stream = await client.messages.stream({
-      model: "claude-3-5-haiku-20241022",
+      model: "claude-3-haiku-20240307",
       max_tokens: 1024,
       system: SYSTEM_PROMPT,
       messages: messages.map((m: { role: string; content: string }) => ({
