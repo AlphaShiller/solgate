@@ -19,9 +19,9 @@ const COLORS = {
   midGray: "#6B6B8D",
 };
 
-// Creator's wallet address (replace with your actual Solana wallet)
-const CREATOR_WALLET = new PublicKey("11111111111111111111111111111111"); // placeholder — update with your wallet
-const PLATFORM_FEE_WALLET = new PublicKey("11111111111111111111111111111111"); // platform treasury
+// Creator's wallet address (your Phantom devnet wallet)
+const CREATOR_WALLET = new PublicKey("5rnPZyuzwWYaHz3RgH8ZfTdSX4sjaCHPBWbXxpA4wkMX");
+const PLATFORM_FEE_WALLET = new PublicKey("5rnPZyuzwWYaHz3RgH8ZfTdSX4sjaCHPBWbXxpA4wkMX"); // same wallet for now (testing)
 
 const creators = [
   {
