@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { useWallet, useConnection } from "@solana/wallet-adapter-react";
-import { useWalletModal } from "@solana/wallet-adapter-react-ui";
+import { WalletModal, WalletModalButton, useWalletModal } from "@/components/WalletModal";
 import {
   PublicKey,
   Transaction,
@@ -59,51 +59,13 @@ interface Tier {
   perks: string[];
 }
 
-function WalletButton() {
-  const { publicKey, disconnect, connected } = useWallet();
-  const { setVisible } = useWalletModal();
+// WalletButton is now imported from @/components/WalletModal
 
-  const shortAddress = publicKey
-    ? `${publicKey.toBase58().slice(0, 4)}...${publicKey.toBase58().slice(-4)}`
-    : "";
-
-  if (connected && publicKey) {
-    return (
-      <div className="flex items-center gap-2">
-        <div
-          className="px-3 py-1.5 rounded-lg text-xs font-mono"
-          style={{ backgroundColor: "#0D3B2E", color: COLORS.teal }}
-        >
-          {shortAddress}
-        </div>
-        <button
-          onClick={disconnect}
-          className="px-3 py-1.5 rounded-lg text-sm font-medium border cursor-pointer"
-          style={{ borderColor: "#FF4444", color: "#FF4444" }}
-        >
-          Disconnect
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <button
-      onClick={() => setVisible(true)}
-      className="px-3 sm:px-4 py-1.5 rounded-lg text-sm font-medium border cursor-pointer transition-all hover:bg-purple-900"
-      style={{ borderColor: COLORS.purple, color: COLORS.purple }}
-    >
-      Connect Wallet
-    </button>
-  );
-}
-
-function BlinkButton({ product, onPurchase }: { product: Product; onPurchase: (p: Product, sig?: string) => void }) {
+function BlinkButton({ product, onPurchase, openWalletModal }: { product: Product; onPurchase: (p: Product, sig?: string) => void; openWalletModal: () => void }) {
   const [status, setStatus] = useState<"idle" | "connecting" | "signing" | "confirming" | "success" | "error">("idle");
   const [txSignature, setTxSignature] = useState<string>("");
   const { publicKey, sendTransaction, connected } = useWallet();
   const { connection } = useConnection();
-  const { setVisible } = useWalletModal();
 
   const handleClick = useCallback(async () => {
     // Free products don't need wallet
@@ -114,7 +76,7 @@ function BlinkButton({ product, onPurchase }: { product: Product; onPurchase: (p
 
     // If wallet not connected, open modal
     if (!connected || !publicKey) {
-      setVisible(true);
+      openWalletModal();
       return;
     }
 
@@ -164,7 +126,7 @@ function BlinkButton({ product, onPurchase }: { product: Product; onPurchase: (p
       setStatus("error");
       setTimeout(() => setStatus("idle"), 3000);
     }
-  }, [product, connected, publicKey, sendTransaction, connection, onPurchase, setVisible]);
+  }, [product, connected, publicKey, sendTransaction, connection, onPurchase, openWalletModal]);
 
   const labels = {
     idle: !connected && product.price > 0
@@ -219,7 +181,7 @@ function BlinkButton({ product, onPurchase }: { product: Product; onPurchase: (p
   );
 }
 
-function ProductCard({ product, onPurchase }: { product: Product; onPurchase: (p: Product, sig?: string) => void }) {
+function ProductCard({ product, onPurchase, openWalletModal }: { product: Product; onPurchase: (p: Product, sig?: string) => void; openWalletModal: () => void }) {
   return (
     <div
       className="rounded-xl p-5 border transition-all hover:border-purple-500"
@@ -245,12 +207,12 @@ function ProductCard({ product, onPurchase }: { product: Product; onPurchase: (p
       ) : (
         <div className="mb-3" />
       )}
-      <BlinkButton product={product} onPurchase={onPurchase} />
+      <BlinkButton product={product} onPurchase={onPurchase} openWalletModal={openWalletModal} />
     </div>
   );
 }
 
-function TierCard({ tier, featured }: { tier: Tier; featured: boolean }) {
+function TierCard({ tier, featured, openWalletModal }: { tier: Tier; featured: boolean; openWalletModal: () => void }) {
   return (
     <div
       className="rounded-xl p-5 border relative"
@@ -284,6 +246,7 @@ function TierCard({ tier, featured }: { tier: Tier; featured: boolean }) {
       <BlinkButton
         product={{ name: tier.name, price: tier.price, priceSol: tier.priceSol, type: "monthly" }}
         onPurchase={() => {}}
+        openWalletModal={openWalletModal}
       />
     </div>
   );
@@ -443,6 +406,7 @@ function CreatorDashboard() {
 export default function SolGateApp() {
   const [view, setView] = useState<"storefront" | "dashboard">("storefront");
   const [purchases, setPurchases] = useState<{ id: string; signature?: string }[]>([]);
+  const walletModal = useWalletModal();
   const creator = creators[0];
 
   const handlePurchase = (product: Product, signature?: string) => {
@@ -475,8 +439,11 @@ export default function SolGateApp() {
             </button>
           ))}
         </div>
-        <WalletButton />
+        <WalletModalButton walletModal={walletModal} />
       </nav>
+
+      {/* Custom Wallet Modal */}
+      <WalletModal walletModal={walletModal} />
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
         {view === "storefront" ? (
@@ -506,7 +473,7 @@ export default function SolGateApp() {
               <h2 className="text-lg font-bold text-white mb-4">Products & Downloads</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {creator.products.map((product) => (
-                  <ProductCard key={product.id} product={product} onPurchase={handlePurchase} />
+                  <ProductCard key={product.id} product={product} onPurchase={handlePurchase} openWalletModal={() => walletModal.setVisible(true)} />
                 ))}
               </div>
             </div>
@@ -516,7 +483,7 @@ export default function SolGateApp() {
               <h2 className="text-lg font-bold text-white mb-4">Membership Tiers</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {creator.tiers.map((tier, i) => (
-                  <TierCard key={i} tier={tier} featured={i === 1} />
+                  <TierCard key={i} tier={tier} featured={i === 1} openWalletModal={() => walletModal.setVisible(true)} />
                 ))}
               </div>
             </div>
