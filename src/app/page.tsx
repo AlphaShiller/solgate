@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useWallet, useConnection } from "@solana/wallet-adapter-react";
 import { WalletModal, WalletModalButton, useWalletModal } from "@/components/WalletModal";
 import {
@@ -272,26 +272,27 @@ function CreatorDashboard() {
     }
   }, [publicKey, connection]);
 
-  // Request devnet airdrop for testing
+  // Request devnet airdrop for testing (1 SOL to avoid rate limits)
   const requestAirdrop = useCallback(async () => {
     if (!publicKey) return;
     setAirdropStatus("loading");
     try {
-      const sig = await connection.requestAirdrop(publicKey, 2 * LAMPORTS_PER_SOL);
+      const sig = await connection.requestAirdrop(publicKey, 1 * LAMPORTS_PER_SOL);
       await connection.confirmTransaction(sig, "confirmed");
       setAirdropStatus("success");
       fetchBalance();
-      setTimeout(() => setAirdropStatus("idle"), 3000);
-    } catch {
+      setTimeout(() => setAirdropStatus("idle"), 5000);
+    } catch (err) {
+      console.error("Airdrop failed:", err);
       setAirdropStatus("error");
-      setTimeout(() => setAirdropStatus("idle"), 3000);
+      setTimeout(() => setAirdropStatus("idle"), 5000);
     }
   }, [publicKey, connection, fetchBalance]);
 
-  // Fetch balance on mount
-  useState(() => {
-    if (connected) fetchBalance();
-  });
+  // Fetch balance when wallet connects
+  useEffect(() => {
+    if (connected && publicKey) fetchBalance();
+  }, [connected, publicKey, fetchBalance]);
 
   return (
     <div className="space-y-6">
@@ -322,7 +323,7 @@ function CreatorDashboard() {
                 className="px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer disabled:opacity-50"
                 style={{ backgroundColor: COLORS.purple, color: "white" }}
               >
-                {airdropStatus === "loading" ? "Airdropping..." : airdropStatus === "success" ? "2 SOL Added!" : "Airdrop 2 SOL (Devnet)"}
+                {airdropStatus === "loading" ? "Airdropping..." : airdropStatus === "success" ? "1 SOL Added!" : airdropStatus === "error" ? "Rate Limited — Try Again" : "Airdrop 1 SOL (Devnet)"}
               </button>
             </div>
           </div>

@@ -63,25 +63,32 @@ export function WalletModal({
 }: {
   walletModal: { visible: boolean; setVisible: (v: boolean) => void };
 }) {
-  const { wallets, select, connected } = useWallet();
+  const { wallets, select, connect, connected } = useWallet();
+  const [connecting, setConnecting] = useState(false);
 
   // Close modal when connected
   useEffect(() => {
     if (connected) {
+      setConnecting(false);
       walletModal.setVisible(false);
     }
   }, [connected, walletModal]);
 
   const handleSelect = useCallback(
-    (walletName: string) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      select(walletName as any);
-      // Give the wallet a moment to connect
-      setTimeout(() => {
-        walletModal.setVisible(false);
-      }, 500);
+    async (walletName: string) => {
+      try {
+        setConnecting(true);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        select(walletName as any);
+        // Need a small delay for select to register, then connect
+        await new Promise((r) => setTimeout(r, 100));
+        await connect();
+      } catch (err) {
+        console.error("Wallet connection error:", err);
+        setConnecting(false);
+      }
     },
-    [select, walletModal]
+    [select, connect]
   );
 
   if (!walletModal.visible) return null;
@@ -206,6 +213,14 @@ export function WalletModal({
                 </button>
               ))}
             </div>
+          </div>
+        )}
+
+        {connecting && (
+          <div className="text-center py-2">
+            <p className="text-xs animate-pulse" style={{ color: COLORS.purple }}>
+              Connecting... approve in your wallet
+            </p>
           </div>
         )}
 
