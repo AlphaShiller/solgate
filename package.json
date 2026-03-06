@@ -17,7 +17,8 @@
     "@solana/wallet-adapter-react": "^0.15.35",
     "@solana/wallet-adapter-wallets": "^0.19.32",
     "stripe": "^17.5.0",
-    "@stripe/stripe-js": "^5.5.0"
+    "@stripe/stripe-js": "^5.5.0",
+    "@anthropic-ai/sdk": "^0.39.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

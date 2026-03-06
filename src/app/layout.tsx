@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import WalletProvider from "@/components/WalletProvider";
+import ChatWidget from "@/components/ChatWidget";
 
 export const metadata: Metadata = {
   title: "SolGate — Creator Paywall & Membership on Solana",
@@ -15,7 +16,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <WalletProvider>{children}</WalletProvider>
+        <WalletProvider>
+          {children}
+          <ChatWidget />
+        </WalletProvider>
       </body>
     </html>
   );
