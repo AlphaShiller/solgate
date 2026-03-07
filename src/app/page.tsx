@@ -1340,20 +1340,11 @@ function SolGateAppInner() {
               </div>
             </div>
 
-            {/* Live Stream Section */}
-            <div className="rounded-xl overflow-hidden border" style={{ borderColor: "#DC2626" }}>
-              {/* Live header */}
-              <div className="flex items-center justify-between px-4 py-3" style={{ backgroundColor: "#1A0A0A" }}>
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-1.5">
-                    <span className="relative flex h-3 w-3">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-                    </span>
-                    <span className="text-sm font-black text-red-400 uppercase tracking-wider">LIVE</span>
-                  </div>
-                  <span className="text-sm font-semibold text-white">AI Alpha Daily — Live Show</span>
-                </div>
+            {/* Latest Videos + Live Stream */}
+            <div className="space-y-4">
+              {/* Header with links */}
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-bold text-white">Latest from AI Alpha Daily</h3>
                 <div className="flex items-center gap-2">
                   <a
                     href="https://www.whatnot.com"
@@ -1362,74 +1353,84 @@ function SolGateAppInner() {
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all hover:opacity-90"
                     style={{ backgroundColor: "#00D26A", color: "#000" }}
                   >
-                    <span>Shop on Whatnot</span>
-                    <span>↗</span>
+                    Shop on Whatnot ↗
                   </a>
                   <a
-                    href={`https://www.youtube.com/@${YOUTUBE_HANDLE}/live`}
+                    href={`https://www.youtube.com/@${YOUTUBE_HANDLE}?sub_confirmation=1`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all hover:opacity-90"
                     style={{ backgroundColor: "#FF0000", color: "#FFF" }}
                   >
-                    <span>YouTube</span>
-                    <span>↗</span>
+                    Subscribe ↗
                   </a>
                 </div>
               </div>
 
-              {/* YouTube Live Embed */}
-              <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
-                <iframe
-                  className="absolute inset-0 w-full h-full"
-                  src={`https://www.youtube.com/embed/live_stream?channel=${YOUTUBE_CHANNEL_ID}&autoplay=1`}
-                  title="AI Alpha Daily Live Stream"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
-              </div>
-
-              {/* Stream info bar */}
-              <div className="px-4 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2" style={{ backgroundColor: COLORS.cardBg }}>
-                <div>
-                  <p className="text-white font-semibold text-sm">Multicasting from Whatnot</p>
-                  <p className="text-xs" style={{ color: COLORS.midGray }}>Watch here or shop live deals on Whatnot</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs px-2 py-1 rounded-full" style={{ backgroundColor: "#2D1B69", color: "#C4B5FD" }}>History • Collectibles • Education</span>
-                </div>
-              </div>
-            </div>
-
-            {/* When not live — show schedule / last stream */}
-            <div className="rounded-xl p-4 border" style={{ backgroundColor: COLORS.cardBg, borderColor: "#2D2550" }}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-white font-bold text-sm">Upcoming Live Shows</h3>
-                  <p className="text-xs mt-1" style={{ color: COLORS.midGray }}>We multicast all Whatnot shows to YouTube so you can watch right here</p>
-                </div>
-                <a
-                  href={`https://www.youtube.com/@${YOUTUBE_HANDLE}?sub_confirmation=1`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer shrink-0"
-                  style={{ backgroundColor: "#FF0000", color: "white" }}
-                >
-                  Subscribe on YouTube
-                </a>
-              </div>
-              <div className="mt-3 space-y-2">
-                {[
-                  { day: "Mon, Wed, Fri", time: "7:00 PM ET", show: "History Card Breaks & Chat" },
-                  { day: "Saturday", time: "3:00 PM ET", show: "Weekend History Auctions" },
-                  { day: "Sunday", time: "6:00 PM ET", show: "Sunday Funday — Mystery Packs & Trivia" },
-                ].map((sched, i) => (
-                  <div key={i} className="flex items-center gap-3 p-2 rounded-lg" style={{ backgroundColor: "#150F28" }}>
-                    <span className="text-xs font-bold w-28 shrink-0" style={{ color: COLORS.teal }}>{sched.day}</span>
-                    <span className="text-xs w-20 shrink-0" style={{ color: COLORS.lightText }}>{sched.time}</span>
-                    <span className="text-xs" style={{ color: COLORS.lightText }}>{sched.show}</span>
+              {/* 2 Latest Videos side by side */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {VIDEOS.slice(0, 2).map((video) => (
+                  <div key={video.id} className="rounded-xl overflow-hidden border" style={{ borderColor: "#2D2550" }}>
+                    <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
+                      <iframe
+                        className="absolute inset-0 w-full h-full"
+                        src={`https://www.youtube.com/embed/${video.youtubeId}`}
+                        title={video.title}
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    </div>
+                    <div className="px-3 py-2.5" style={{ backgroundColor: COLORS.cardBg }}>
+                      <p className="text-white font-semibold text-sm leading-tight">{video.title}</p>
+                    </div>
                   </div>
                 ))}
+              </div>
+
+              {/* Live Stream Banner — shows when live, links to YouTube/Whatnot */}
+              <div className="rounded-xl p-4 border" style={{ backgroundColor: "#1A0A0A", borderColor: "#DC2626" }}>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1.5">
+                      <span className="relative flex h-3 w-3">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                      </span>
+                      <span className="text-sm font-black text-red-400 uppercase tracking-wider">LIVE</span>
+                    </div>
+                    <div>
+                      <p className="text-white font-semibold text-sm">Catch us live on Whatnot — multicasting to YouTube!</p>
+                      <p className="text-xs" style={{ color: COLORS.midGray }}>When we go live, the stream appears right here</p>
+                    </div>
+                  </div>
+                  <a
+                    href={`https://www.youtube.com/@${YOUTUBE_HANDLE}/live`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2 rounded-lg text-sm font-bold cursor-pointer shrink-0"
+                    style={{ backgroundColor: "#FF0000", color: "white" }}
+                  >
+                    Watch Live on YouTube ↗
+                  </a>
+                </div>
+              </div>
+
+              {/* Show Schedule */}
+              <div className="rounded-xl p-4 border" style={{ backgroundColor: COLORS.cardBg, borderColor: "#2D2550" }}>
+                <h3 className="text-white font-bold text-sm mb-3">Upcoming Live Shows</h3>
+                <div className="space-y-2">
+                  {[
+                    { day: "Mon, Wed, Fri", time: "7:00 PM ET", show: "History Card Breaks & Chat" },
+                    { day: "Saturday", time: "3:00 PM ET", show: "Weekend History Auctions" },
+                    { day: "Sunday", time: "6:00 PM ET", show: "Sunday Funday — Mystery Packs & Trivia" },
+                  ].map((sched, i) => (
+                    <div key={i} className="flex items-center gap-3 p-2 rounded-lg" style={{ backgroundColor: "#150F28" }}>
+                      <span className="text-xs font-bold w-28 shrink-0" style={{ color: COLORS.teal }}>{sched.day}</span>
+                      <span className="text-xs w-20 shrink-0" style={{ color: COLORS.lightText }}>{sched.time}</span>
+                      <span className="text-xs" style={{ color: COLORS.lightText }}>{sched.show}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
 
