@@ -141,6 +141,29 @@ const VIDEOS: Video[] = [
   { id: "v6", title: "The Titanic Story for Kids: Safety and Respect", youtubeId: "KrEHiIblWuo" },
 ];
 
+// --- Merchandise ---
+interface MerchItem {
+  id: string;
+  name: string;
+  price: number;
+  priceSol: number;
+  category: "apparel" | "educational";
+  description: string;
+  emoji: string;
+  sizes?: string[];
+}
+
+const MERCH: MerchItem[] = [
+  { id: "m1", name: "History Adventures T-Shirt", price: 24.99, priceSol: 0.18, category: "apparel", description: "Soft cotton tee with History Adventures logo", emoji: "👕", sizes: ["Youth S", "Youth M", "Youth L", "Adult S", "Adult M", "Adult L", "Adult XL"] },
+  { id: "m2", name: "Explorer Hoodie", price: 39.99, priceSol: 0.29, category: "apparel", description: "Cozy pullover hoodie — perfect for young explorers", emoji: "🧥", sizes: ["Youth S", "Youth M", "Youth L", "Adult S", "Adult M", "Adult L"] },
+  { id: "m3", name: "Time Traveler Cap", price: 18.99, priceSol: 0.14, category: "apparel", description: "Adjustable cap with embroidered compass logo", emoji: "🧢" },
+  { id: "m4", name: "History Flash Card Super Pack", price: 14.99, priceSol: 0.11, category: "educational", description: "200 flash cards covering 10 history topics with fun facts", emoji: "🃏" },
+  { id: "m5", name: "World History Poster Set", price: 19.99, priceSol: 0.15, category: "educational", description: "5 large posters: Pyramids, Rome, Renaissance, Revolution, Space", emoji: "🗺️" },
+  { id: "m6", name: "History Adventures Workbook", price: 12.99, priceSol: 0.10, category: "educational", description: "48-page activity workbook with puzzles, timelines & coloring", emoji: "📓" },
+  { id: "m7", name: "Ancient Civilizations Coloring Book", price: 9.99, priceSol: 0.07, category: "educational", description: "30 detailed illustrations from Egypt, Greece, Rome & more", emoji: "🎨" },
+  { id: "m8", name: "History Adventures Tote Bag", price: 15.99, priceSol: 0.12, category: "apparel", description: "Canvas tote with timeline print — carry your books in style", emoji: "👜" },
+];
+
 // --- Components ---
 
 function BlinkButton({ product, onPurchase, openWalletModal }: { product: Product; onPurchase: (p: Product, sig?: string) => void; openWalletModal: () => void }) {
@@ -500,6 +523,270 @@ function CreatorDashboard({ onPostCreated }: { onPostCreated: (post: Post) => vo
   );
 }
 
+// --- Merch Card ---
+function MerchCard({ item, onAddToCart }: { item: MerchItem; onAddToCart: (item: MerchItem, size?: string) => void }) {
+  const [selectedSize, setSelectedSize] = useState(item.sizes?.[2] || "");
+
+  return (
+    <div className="rounded-xl p-4 border transition-all hover:border-purple-500" style={{ backgroundColor: COLORS.cardBg, borderColor: "#2D2550" }}>
+      <div className="text-4xl mb-3 text-center py-4 rounded-lg" style={{ backgroundColor: "#150F28" }}>{item.emoji}</div>
+      <div className="flex justify-between items-start mb-1">
+        <h3 className="text-white font-bold text-sm leading-tight">{item.name}</h3>
+        <span className="text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ml-2" style={{ backgroundColor: item.category === "apparel" ? "#2D1B69" : "#0D3B2E", color: item.category === "apparel" ? "#C4B5FD" : COLORS.teal }}>
+          {item.category === "apparel" ? "APPAREL" : "EDUCATIONAL"}
+        </span>
+      </div>
+      <p className="text-xs mb-2" style={{ color: COLORS.lightText }}>{item.description}</p>
+      <div className="flex items-baseline gap-2 mb-3">
+        <span className="text-lg font-black" style={{ color: COLORS.teal }}>${item.price}</span>
+        <span className="text-xs" style={{ color: COLORS.midGray }}>{item.priceSol} SOL</span>
+      </div>
+      {item.sizes && (
+        <select
+          value={selectedSize}
+          onChange={(e) => setSelectedSize(e.target.value)}
+          className="w-full rounded-lg px-3 py-2 text-sm mb-3 outline-none"
+          style={{ backgroundColor: "#150F28", color: COLORS.lightText, border: "1px solid #2D2550" }}
+        >
+          {item.sizes.map((s) => <option key={s} value={s}>{s}</option>)}
+        </select>
+      )}
+      <button
+        onClick={() => onAddToCart(item, selectedSize || undefined)}
+        className="w-full py-2.5 rounded-lg font-semibold text-sm cursor-pointer transition-all hover:opacity-90"
+        style={{ backgroundColor: COLORS.purple, color: "white" }}
+      >
+        Add to Cart
+      </button>
+    </div>
+  );
+}
+
+// --- Order / Cart Modal ---
+interface CartItem {
+  merch: MerchItem;
+  size?: string;
+  quantity: number;
+}
+
+function OrderModal({ cart, onClose, onRemove, onUpdateQty, onOrderComplete }: {
+  cart: CartItem[];
+  onClose: () => void;
+  onRemove: (idx: number) => void;
+  onUpdateQty: (idx: number, qty: number) => void;
+  onOrderComplete: () => void;
+}) {
+  const [step, setStep] = useState<"cart" | "shipping" | "confirm">("cart");
+  const [shipping, setShipping] = useState({ name: "", address: "", city: "", state: "", zip: "", email: "" });
+  const [submitting, setSubmitting] = useState(false);
+  const [orderResult, setOrderResult] = useState<{ id: string } | null>(null);
+  const [error, setError] = useState("");
+
+  const total = cart.reduce((sum, item) => sum + item.merch.price * item.quantity, 0);
+  const shippingCost = total >= 50 ? 0 : 5.99;
+
+  const handleSubmit = async () => {
+    if (!shipping.name || !shipping.address || !shipping.city || !shipping.state || !shipping.zip || !shipping.email) {
+      setError("Please fill in all fields");
+      return;
+    }
+    setSubmitting(true);
+    setError("");
+    try {
+      const res = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: cart.map((c) => ({ name: c.merch.name, price: c.merch.price, quantity: c.quantity, size: c.size, merchId: c.merch.id })),
+          shipping: { name: shipping.name, address: shipping.address, city: shipping.city, state: shipping.state, zip: shipping.zip },
+          email: shipping.email,
+          paymentMethod: "card",
+        }),
+      });
+      const data = await res.json();
+      if (data.order) {
+        setOrderResult(data.order);
+        setStep("confirm");
+        onOrderComplete();
+      } else {
+        throw new Error(data.error || "Order failed");
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to place order");
+    }
+    setSubmitting(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: "rgba(0,0,0,0.7)" }} onClick={onClose}>
+      <div className="w-full max-w-lg rounded-2xl p-6 max-h-[85vh] overflow-y-auto" style={{ backgroundColor: COLORS.cardBg, border: "1px solid #2D2550" }} onClick={(e) => e.stopPropagation()}>
+        {step === "cart" && (
+          <>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-black text-white">Your Cart ({cart.length})</h2>
+              <button onClick={onClose} className="text-2xl cursor-pointer" style={{ color: COLORS.midGray }}>&times;</button>
+            </div>
+            {cart.length === 0 ? (
+              <p className="text-center py-8" style={{ color: COLORS.midGray }}>Your cart is empty</p>
+            ) : (
+              <>
+                <div className="space-y-3 mb-4">
+                  {cart.map((item, idx) => (
+                    <div key={idx} className="flex items-center gap-3 p-3 rounded-lg" style={{ backgroundColor: "#150F28" }}>
+                      <span className="text-2xl">{item.merch.emoji}</span>
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-white">{item.merch.name}</p>
+                        {item.size && <p className="text-xs" style={{ color: COLORS.midGray }}>Size: {item.size}</p>}
+                        <p className="text-sm font-bold" style={{ color: COLORS.teal }}>${(item.merch.price * item.quantity).toFixed(2)}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => onUpdateQty(idx, Math.max(1, item.quantity - 1))} className="w-7 h-7 rounded flex items-center justify-center cursor-pointer text-white text-sm" style={{ backgroundColor: "#2D2550" }}>-</button>
+                        <span className="text-white text-sm w-4 text-center">{item.quantity}</span>
+                        <button onClick={() => onUpdateQty(idx, item.quantity + 1)} className="w-7 h-7 rounded flex items-center justify-center cursor-pointer text-white text-sm" style={{ backgroundColor: "#2D2550" }}>+</button>
+                      </div>
+                      <button onClick={() => onRemove(idx)} className="text-red-400 text-xs cursor-pointer hover:text-red-300">Remove</button>
+                    </div>
+                  ))}
+                </div>
+                <div className="border-t pt-3 space-y-1" style={{ borderColor: "#2D2550" }}>
+                  <div className="flex justify-between text-sm" style={{ color: COLORS.lightText }}><span>Subtotal</span><span>${total.toFixed(2)}</span></div>
+                  <div className="flex justify-between text-sm" style={{ color: COLORS.lightText }}><span>Shipping</span><span>{shippingCost === 0 ? <span style={{ color: COLORS.teal }}>FREE</span> : `$${shippingCost.toFixed(2)}`}</span></div>
+                  {total < 50 && <p className="text-xs" style={{ color: COLORS.midGray }}>Free shipping on orders over $50!</p>}
+                  <div className="flex justify-between text-lg font-black pt-2" style={{ color: "white" }}><span>Total</span><span style={{ color: COLORS.teal }}>${(total + shippingCost).toFixed(2)}</span></div>
+                </div>
+                <button onClick={() => setStep("shipping")} className="w-full mt-4 py-3 rounded-lg font-bold text-white cursor-pointer" style={{ backgroundColor: COLORS.purple }}>Proceed to Shipping</button>
+              </>
+            )}
+          </>
+        )}
+        {step === "shipping" && (
+          <>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-black text-white">Shipping Details</h2>
+              <button onClick={() => setStep("cart")} className="text-sm cursor-pointer" style={{ color: COLORS.teal }}>← Back</button>
+            </div>
+            <div className="space-y-3">
+              {[
+                { key: "name", label: "Full Name", placeholder: "John Doe" },
+                { key: "email", label: "Email", placeholder: "john@example.com" },
+                { key: "address", label: "Street Address", placeholder: "123 Main St" },
+                { key: "city", label: "City", placeholder: "Austin" },
+              ].map((field) => (
+                <div key={field.key}>
+                  <label className="text-xs font-medium mb-1 block" style={{ color: COLORS.lightText }}>{field.label}</label>
+                  <input
+                    type={field.key === "email" ? "email" : "text"}
+                    placeholder={field.placeholder}
+                    value={shipping[field.key as keyof typeof shipping]}
+                    onChange={(e) => setShipping({ ...shipping, [field.key]: e.target.value })}
+                    className="w-full px-3 py-2.5 rounded-lg text-sm outline-none"
+                    style={{ backgroundColor: "#150F28", color: COLORS.lightText, border: "1px solid #2D2550" }}
+                  />
+                </div>
+              ))}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium mb-1 block" style={{ color: COLORS.lightText }}>State</label>
+                  <input placeholder="TX" value={shipping.state} onChange={(e) => setShipping({ ...shipping, state: e.target.value })}
+                    className="w-full px-3 py-2.5 rounded-lg text-sm outline-none" style={{ backgroundColor: "#150F28", color: COLORS.lightText, border: "1px solid #2D2550" }} />
+                </div>
+                <div>
+                  <label className="text-xs font-medium mb-1 block" style={{ color: COLORS.lightText }}>ZIP Code</label>
+                  <input placeholder="78701" value={shipping.zip} onChange={(e) => setShipping({ ...shipping, zip: e.target.value })}
+                    className="w-full px-3 py-2.5 rounded-lg text-sm outline-none" style={{ backgroundColor: "#150F28", color: COLORS.lightText, border: "1px solid #2D2550" }} />
+                </div>
+              </div>
+            </div>
+            {error && <p className="text-red-400 text-sm mt-3">{error}</p>}
+            <div className="mt-4 p-3 rounded-lg" style={{ backgroundColor: "#150F28" }}>
+              <div className="flex justify-between text-sm font-bold text-white"><span>Order Total</span><span style={{ color: COLORS.teal }}>${(total + shippingCost).toFixed(2)}</span></div>
+            </div>
+            <button onClick={handleSubmit} disabled={submitting} className="w-full mt-4 py-3 rounded-lg font-bold text-white cursor-pointer disabled:opacity-50" style={{ backgroundColor: "#635BFF" }}>
+              {submitting ? "Placing Order..." : `Pay $${(total + shippingCost).toFixed(2)} with Card`}
+            </button>
+          </>
+        )}
+        {step === "confirm" && orderResult && (
+          <div className="text-center py-6">
+            <div className="text-5xl mb-4">🎉</div>
+            <h2 className="text-xl font-black text-white mb-2">Order Confirmed!</h2>
+            <p className="text-sm mb-1" style={{ color: COLORS.lightText }}>Order ID: <span className="font-mono" style={{ color: COLORS.teal }}>{orderResult.id}</span></p>
+            <p className="text-sm mb-4" style={{ color: COLORS.midGray }}>A confirmation email will be sent to your address. Your shipping label is being generated.</p>
+            <button onClick={onClose} className="px-6 py-2.5 rounded-lg font-bold text-white cursor-pointer" style={{ backgroundColor: COLORS.purple }}>Continue Shopping</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// --- Newsletter Section ---
+function NewsletterSection() {
+  const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+  const [status, setStatus] = useState<"idle" | "loading" | "success" | "already" | "error">("idle");
+
+  const handleSubscribe = async () => {
+    if (!email.includes("@")) return;
+    setStatus("loading");
+    try {
+      const res = await fetch("/api/newsletter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, name }),
+      });
+      const data = await res.json();
+      if (data.alreadySubscribed) {
+        setStatus("already");
+      } else {
+        setStatus("success");
+        setEmail("");
+        setName("");
+      }
+      setTimeout(() => setStatus("idle"), 4000);
+    } catch {
+      setStatus("error");
+      setTimeout(() => setStatus("idle"), 3000);
+    }
+  };
+
+  return (
+    <div className="rounded-xl p-6 text-center" style={{ background: "linear-gradient(135deg, #1E1245, #0D3B2E)", border: "1px solid #2D2550" }}>
+      <div className="text-3xl mb-2">📬</div>
+      <h3 className="text-white font-bold text-lg mb-1">Stay in the Loop!</h3>
+      <p className="text-sm mb-4" style={{ color: COLORS.lightText }}>Get new episode alerts, free resources, and exclusive history fun delivered to your inbox.</p>
+      <div className="flex flex-col sm:flex-row gap-2 max-w-md mx-auto">
+        <input
+          type="text"
+          placeholder="First name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="px-3 py-2.5 rounded-lg text-sm outline-none sm:w-32"
+          style={{ backgroundColor: "#150F28", color: COLORS.lightText, border: "1px solid #2D2550" }}
+        />
+        <input
+          type="email"
+          placeholder="your@email.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleSubscribe()}
+          className="flex-1 px-3 py-2.5 rounded-lg text-sm outline-none"
+          style={{ backgroundColor: "#150F28", color: COLORS.lightText, border: "1px solid #2D2550" }}
+        />
+        <button
+          onClick={handleSubscribe}
+          disabled={status === "loading"}
+          className="px-5 py-2.5 rounded-lg font-bold text-sm text-white cursor-pointer disabled:opacity-50 whitespace-nowrap"
+          style={{ backgroundColor: status === "success" ? COLORS.teal : status === "error" ? "#DC2626" : COLORS.purple, color: status === "success" ? "#0F0A1E" : "white" }}
+        >
+          {status === "loading" ? "Subscribing..." : status === "success" ? "Subscribed!" : status === "already" ? "Already Subscribed" : status === "error" ? "Try Again" : "Subscribe"}
+        </button>
+      </div>
+      <p className="text-xs mt-3" style={{ color: COLORS.midGray }}>No spam, ever. Unsubscribe anytime.</p>
+    </div>
+  );
+}
+
 // --- Main App ---
 
 function SolGateAppInner() {
@@ -508,6 +795,8 @@ function SolGateAppInner() {
   const [posts, setPosts] = useState<Post[]>(INITIAL_POSTS);
   const [canceledNotice, setCanceledNotice] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<Video>(VIDEOS[0]);
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [showCart, setShowCart] = useState(false);
   const walletModal = useWalletModal();
   const { publicKey } = useWallet();
   const searchParams = useSearchParams();
@@ -543,6 +832,19 @@ function SolGateAppInner() {
     setPosts((prev) => [post, ...prev]);
   };
 
+  const handleAddToCart = (item: MerchItem, size?: string) => {
+    setCart((prev) => {
+      const existing = prev.findIndex((c) => c.merch.id === item.id && c.size === size);
+      if (existing >= 0) {
+        const updated = [...prev];
+        updated[existing].quantity++;
+        return updated;
+      }
+      return [...prev, { merch: item, size, quantity: 1 }];
+    });
+    setShowCart(true);
+  };
+
   const views = [
     { key: "storefront" as const, label: "Storefront" },
     { key: "videos" as const, label: "Videos" },
@@ -552,12 +854,14 @@ function SolGateAppInner() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: COLORS.darkBg }}>
-      {/* Nav */}
-      <nav className="border-b px-4 sm:px-6 py-3 flex items-center justify-between" style={{ borderColor: "#2D2550" }}>
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm" style={{ backgroundColor: COLORS.purple, color: "white" }}>SG</div>
-          <span className="text-white font-bold text-lg">SolGate</span>
-          <span className="text-xs px-2 py-0.5 rounded-full ml-1 hidden sm:inline" style={{ backgroundColor: "#2D1B69", color: "#C4B5FD" }}>DEVNET</span>
+      {/* Nav — sticky */}
+      <nav className="border-b px-4 sm:px-6 py-2 flex items-center justify-between sticky top-0 z-40" style={{ borderColor: "#2D2550", backgroundColor: COLORS.darkBg }}>
+        <div className="flex items-center gap-3">
+          <img src="/logo.png" alt="AI Alpha Daily" className="h-10 w-auto rounded-lg" />
+          <div className="hidden sm:flex items-center gap-2">
+            <span className="text-white font-bold text-lg">SolGate</span>
+            <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: "#2D1B69", color: "#C4B5FD" }}>DEVNET</span>
+          </div>
         </div>
         <div className="flex gap-1">
           {views.map((v) => (
@@ -571,7 +875,14 @@ function SolGateAppInner() {
             </button>
           ))}
         </div>
-        <WalletModalButton walletModal={walletModal} />
+        <div className="flex items-center gap-2">
+          {cart.length > 0 && (
+            <button onClick={() => setShowCart(true)} className="relative px-3 py-1.5 rounded-lg text-sm font-medium cursor-pointer" style={{ backgroundColor: COLORS.purple, color: "white" }}>
+              🛒 {cart.reduce((sum, c) => sum + c.quantity, 0)}
+            </button>
+          )}
+          <WalletModalButton walletModal={walletModal} />
+        </div>
       </nav>
 
       <WalletModal walletModal={walletModal} />
@@ -675,7 +986,31 @@ function SolGateAppInner() {
                 ))}
               </div>
             )}
+
+            {/* Merchandise */}
+            <div>
+              <h2 className="text-lg font-bold text-white mb-4">Merchandise</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                {MERCH.map((item) => (
+                  <MerchCard key={item.id} item={item} onAddToCart={handleAddToCart} />
+                ))}
+              </div>
+            </div>
+
+            {/* Newsletter */}
+            <NewsletterSection />
           </div>
+        )}
+
+        {/* Cart / Order Modal */}
+        {showCart && (
+          <OrderModal
+            cart={cart}
+            onClose={() => setShowCart(false)}
+            onRemove={(idx) => setCart((prev) => prev.filter((_, i) => i !== idx))}
+            onUpdateQty={(idx, qty) => setCart((prev) => { const u = [...prev]; u[idx].quantity = qty; return u; })}
+            onOrderComplete={() => setCart([])}
+          />
         )}
 
         {view === "videos" && (
