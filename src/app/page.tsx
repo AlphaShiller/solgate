@@ -1050,6 +1050,29 @@ function SolGateAppInner() {
     refreshStripeSubscription();
   }, [refreshStripeSubscription]);
 
+  // Load persisted posts from API on mount, merge with initial posts
+  useEffect(() => {
+    async function loadPosts() {
+      try {
+        const res = await fetch("/api/posts");
+        const data = await res.json();
+        if (data.posts && data.posts.length > 0) {
+          // Merge API posts with initial posts (API posts take priority by ID)
+          const apiPostIds = new Set(data.posts.map((p: Post) => p.id));
+          const uniqueInitial = INITIAL_POSTS.filter((p) => !apiPostIds.has(p.id));
+          const merged = [...data.posts, ...uniqueInitial].sort(
+            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+          setPosts(merged);
+        }
+        // posts loaded
+      } catch {
+        // posts loaded // fall back to INITIAL_POSTS
+      }
+    }
+    loadPosts();
+  }, []);
+
   // Handle ?canceled=true from Stripe
   useEffect(() => {
     if (searchParams.get("canceled") === "true") {

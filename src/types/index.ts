@@ -21,6 +21,7 @@ export interface Post {
   body: string;
   tier: "free" | "Explorer" | "Scholar" | "VIP Learner";
   videoUrl?: string;
+  imageUrl?: string;
   createdAt: string; // ISO string
   likes: number;
 }

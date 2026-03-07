@@ -60,18 +60,44 @@ export default function PostCard({
         </span>
       </div>
 
+      {/* Image at top (full width, above content) */}
+      {canView && post.imageUrl && (
+        <div className="w-full">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={post.imageUrl}
+            alt={post.title}
+            className="w-full max-h-80 object-cover"
+          />
+        </div>
+      )}
+
+      {/* Video embed at top if no image */}
+      {canView && embedUrl && !post.imageUrl && (
+        <div className="relative w-full" style={{ aspectRatio: "16/9" }}>
+          <iframe
+            src={embedUrl}
+            className="absolute inset-0 w-full h-full"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            title={post.title}
+          />
+        </div>
+      )}
+
       {/* Content */}
       <div className="px-5 pb-5 relative">
         {canView ? (
           <>
-            <h3 className="text-white font-bold text-lg mb-2">{post.title}</h3>
+            <h3 className="text-white font-bold text-lg mb-2 mt-4">{post.title}</h3>
             <p
               className="text-sm leading-relaxed mb-4"
               style={{ color: COLORS.lightText }}
             >
               {post.body}
             </p>
-            {embedUrl && (
+            {/* If there's both image AND video, show video below the text */}
+            {embedUrl && post.imageUrl && (
               <div className="relative w-full rounded-lg overflow-hidden" style={{ aspectRatio: "16/9" }}>
                 <iframe
                   src={embedUrl}
