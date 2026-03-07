@@ -26,7 +26,7 @@ const CREATOR_WALLET = new PublicKey("5rnPZyuzwWYaHz3RgH8ZfTdSX4sjaCHPBWbXxpA4wk
 
 // YouTube channel config — replace YOUTUBE_CHANNEL_ID with your actual UC... channel ID
 // Find it at: youtube.com/@AIAlphaDaily-i9v → click About → Share Channel → Copy Channel ID
-const YOUTUBE_CHANNEL_ID = "UCPLACEHOLDER"; // TODO: Replace with your real channel ID (starts with UC)
+const YOUTUBE_CHANNEL_ID = "UC_HpbWhas486jKzzc1KFzeQ";
 const YOUTUBE_HANDLE = "AIAlphaDaily-i9v";
 const PLATFORM_FEE_WALLET = new PublicKey("5rnPZyuzwWYaHz3RgH8ZfTdSX4sjaCHPBWbXxpA4wkMX");
 
