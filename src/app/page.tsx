@@ -1120,15 +1120,15 @@ function SolGateAppInner() {
   // Only show Dashboard tab if connected wallet is the creator/owner
   const isOwner = publicKey && publicKey.toBase58() === CREATOR_WALLET.toBase58();
 
-  const views = [
-    { key: "storefront" as const, label: "Storefront" },
-    { key: "videos" as const, label: "Videos" },
-    { key: "feed" as const, label: "Feed" },
-    ...(isOwner ? [
-      { key: "shipments" as const, label: "Shipments" },
-      { key: "dashboard" as const, label: "Dashboard" },
-    ] : []),
+  type ViewKey = "storefront" | "videos" | "feed" | "dashboard" | "shipments";
+  const allViews: { key: ViewKey; label: string; ownerOnly?: boolean }[] = [
+    { key: "storefront", label: "Storefront" },
+    { key: "videos", label: "Videos" },
+    { key: "feed", label: "Feed" },
+    { key: "shipments", label: "Shipments", ownerOnly: true },
+    { key: "dashboard", label: "Dashboard", ownerOnly: true },
   ];
+  const views = allViews.filter((v) => !v.ownerOnly || isOwner);
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: COLORS.darkBg }}>
