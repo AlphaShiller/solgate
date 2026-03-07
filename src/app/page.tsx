@@ -1474,7 +1474,7 @@ function SolGateAppInner() {
 
             <PostFeed
               posts={posts}
-              canViewTier={canViewTier}
+              canViewTier={isOwner ? () => true : canViewTier}
               onSubscribeClick={() => setView("storefront")}
             />
           </div>
