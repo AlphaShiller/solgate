@@ -397,13 +397,42 @@ function TierCard({ tier, featured, openWalletModal, onSubscribed, isSubscribed 
   );
 }
 
+// --- Mini Bar Chart (pure CSS) ---
+function MiniBar({ label, value, max, color }: { label: string; value: number; max: number; color: string }) {
+  const pct = Math.min((value / max) * 100, 100);
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-xs w-20 truncate" style={{ color: COLORS.lightText }}>{label}</span>
+      <div className="flex-1 h-5 rounded-full overflow-hidden" style={{ backgroundColor: "#150F28" }}>
+        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: color }} />
+      </div>
+      <span className="text-xs font-bold w-12 text-right" style={{ color }}>{typeof value === "number" && value >= 1000 ? `${(value / 1000).toFixed(1)}k` : value}</span>
+    </div>
+  );
+}
+
+// --- Sparkline (CSS mini chart) ---
+function Sparkline({ data, color }: { data: number[]; color: string }) {
+  const max = Math.max(...data);
+  const min = Math.min(...data);
+  const range = max - min || 1;
+  return (
+    <div className="flex items-end gap-0.5 h-8">
+      {data.map((v, i) => (
+        <div key={i} className="flex-1 rounded-t-sm transition-all" style={{ height: `${((v - min) / range) * 100}%`, minHeight: "2px", backgroundColor: color, opacity: i === data.length - 1 ? 1 : 0.5 + (i / data.length) * 0.5 }} />
+      ))}
+    </div>
+  );
+}
+
 function CreatorDashboard({ onPostCreated }: { onPostCreated: (post: Post) => void }) {
   const { publicKey, connected } = useWallet();
   const { connection } = useConnection();
   const [balance, setBalance] = useState<number | null>(null);
-  const [revenue] = useState({ today: 847.23, month: 12483.91, subscribers: 2847 });
   const [blinkUrl, setBlinkUrl] = useState("");
   const [airdropStatus, setAirdropStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [newsletterCount, setNewsletterCount] = useState<number | null>(null);
+  const [orderStats, setOrderStats] = useState<{ total: number; pending: number; revenue: number } | null>(null);
 
   const generateBlink = () => { setBlinkUrl("solgate.io/pay/history-adventures/complete-bundle"); };
 
@@ -434,10 +463,47 @@ function CreatorDashboard({ onPostCreated }: { onPostCreated: (post: Post) => vo
     if (connected && publicKey) fetchBalance();
   }, [connected, publicKey, fetchBalance]);
 
+  // Fetch newsletter & order stats
+  useEffect(() => {
+    fetch("/api/newsletter").then(r => r.json()).then(d => setNewsletterCount(d.count)).catch(() => {});
+    fetch("/api/orders").then(r => r.json()).then(d => {
+      if (d.orders) {
+        const orders = d.orders;
+        setOrderStats({
+          total: orders.length,
+          pending: orders.filter((o: { labelGenerated: boolean }) => !o.labelGenerated).length,
+          revenue: orders.reduce((sum: number, o: { total: number }) => sum + (o.total || 0), 0),
+        });
+      }
+    }).catch(() => {});
+  }, []);
+
+  // Simulated analytics data (would come from real analytics in production)
+  const revenueBySource = { memberships: 8234.50, merch: 2847.91, products: 1401.50 };
+  const totalRevenue = revenueBySource.memberships + revenueBySource.merch + revenueBySource.products;
+  const weeklyRevenue = [1842, 2105, 1956, 2347, 2089, 2456, 2691];
+  const weeklySubscribers = [38, 45, 42, 51, 47, 56, 63];
+  const subscribersByTier = { Explorer: 1247, Scholar: 986, "VIP Learner": 614 };
+  const totalSubs = Object.values(subscribersByTier).reduce((a, b) => a + b, 0);
+  const paymentSplit = { card: 62, sol: 38 };
+  const topMerch = [
+    { name: "T-Shirt", sold: 184 },
+    { name: "Flash Cards", sold: 156 },
+    { name: "Workbook", sold: 132 },
+    { name: "Poster Set", sold: 98 },
+    { name: "Hoodie", sold: 87 },
+  ];
+  const topPosts = INITIAL_POSTS.slice().sort((a, b) => b.likes - a.likes).slice(0, 5);
+  const conversionRate = 8.4;
+  const churnRate = 2.1;
+  const avgOrderValue = 28.47;
+  const lifetimeValue = 67.83;
+
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-black text-white">Creator Dashboard</h2>
 
+      {/* Wallet Section */}
       {connected && publicKey && (
         <div className="rounded-xl p-4 border" style={{ backgroundColor: "#0D3B2E", borderColor: COLORS.teal }}>
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
@@ -463,22 +529,185 @@ function CreatorDashboard({ onPostCreated }: { onPostCreated: (post: Post) => vo
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* === TOP STATS ROW === */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: "Today's Revenue", value: `$${revenue.today}`, color: COLORS.teal },
-          { label: "Monthly Revenue", value: `$${revenue.month.toLocaleString()}`, color: COLORS.purple },
-          { label: "Active Subscribers", value: revenue.subscribers.toLocaleString(), color: COLORS.teal },
+          { label: "Monthly Revenue", value: `$${totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, sub: "+18% vs last month", color: COLORS.teal, trend: "up" },
+          { label: "Active Subscribers", value: totalSubs.toLocaleString(), sub: `+63 this week`, color: COLORS.purple, trend: "up" },
+          { label: "Newsletter Subs", value: newsletterCount !== null ? newsletterCount.toLocaleString() : "—", sub: "Email list", color: "#635BFF", trend: "up" },
+          { label: "Merch Orders", value: orderStats ? orderStats.total.toString() : "—", sub: orderStats ? `${orderStats.pending} pending labels` : "Loading...", color: "#F59E0B", trend: "neutral" },
         ].map((stat, i) => (
-          <div key={i} className="rounded-xl p-4 text-center" style={{ backgroundColor: COLORS.cardBg }}>
-            <div className="text-3xl font-black mb-1" style={{ color: stat.color }}>{stat.value}</div>
-            <div className="text-xs" style={{ color: COLORS.midGray }}>{stat.label}</div>
+          <div key={i} className="rounded-xl p-4" style={{ backgroundColor: COLORS.cardBg }}>
+            <div className="text-xs mb-1" style={{ color: COLORS.midGray }}>{stat.label}</div>
+            <div className="text-2xl font-black" style={{ color: stat.color }}>{stat.value}</div>
+            <div className="text-xs mt-1 flex items-center gap-1" style={{ color: stat.trend === "up" ? COLORS.teal : COLORS.midGray }}>
+              {stat.trend === "up" && "↑"} {stat.sub}
+            </div>
           </div>
         ))}
       </div>
 
-      {/* Create Post Form */}
+      {/* === REVENUE ANALYTICS === */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Revenue by Source */}
+        <div className="rounded-xl p-5" style={{ backgroundColor: COLORS.cardBg }}>
+          <h3 className="text-white font-bold mb-1">Revenue by Source</h3>
+          <p className="text-xs mb-4" style={{ color: COLORS.midGray }}>Where your money comes from this month</p>
+          <div className="space-y-3">
+            <MiniBar label="Memberships" value={revenueBySource.memberships} max={totalRevenue} color={COLORS.purple} />
+            <MiniBar label="Merchandise" value={revenueBySource.merch} max={totalRevenue} color="#F59E0B" />
+            <MiniBar label="Products" value={revenueBySource.products} max={totalRevenue} color={COLORS.teal} />
+          </div>
+          <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+            <div>
+              <div className="text-sm font-bold" style={{ color: COLORS.purple }}>{((revenueBySource.memberships / totalRevenue) * 100).toFixed(0)}%</div>
+              <div className="text-xs" style={{ color: COLORS.midGray }}>Memberships</div>
+            </div>
+            <div>
+              <div className="text-sm font-bold" style={{ color: "#F59E0B" }}>{((revenueBySource.merch / totalRevenue) * 100).toFixed(0)}%</div>
+              <div className="text-xs" style={{ color: COLORS.midGray }}>Merch</div>
+            </div>
+            <div>
+              <div className="text-sm font-bold" style={{ color: COLORS.teal }}>{((revenueBySource.products / totalRevenue) * 100).toFixed(0)}%</div>
+              <div className="text-xs" style={{ color: COLORS.midGray }}>Products</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Weekly Revenue Trend */}
+        <div className="rounded-xl p-5" style={{ backgroundColor: COLORS.cardBg }}>
+          <h3 className="text-white font-bold mb-1">Weekly Revenue Trend</h3>
+          <p className="text-xs mb-3" style={{ color: COLORS.midGray }}>Last 7 days — daily revenue</p>
+          <Sparkline data={weeklyRevenue} color={COLORS.teal} />
+          <div className="flex justify-between mt-2">
+            {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d, i) => (
+              <span key={d} className="text-xs" style={{ color: i === 6 ? COLORS.teal : COLORS.midGray }}>{d}</span>
+            ))}
+          </div>
+          <div className="mt-3 flex justify-between">
+            <div><span className="text-xs" style={{ color: COLORS.midGray }}>Weekly Total</span><div className="text-lg font-black" style={{ color: COLORS.teal }}>${weeklyRevenue.reduce((a, b) => a + b, 0).toLocaleString()}</div></div>
+            <div className="text-right"><span className="text-xs" style={{ color: COLORS.midGray }}>Daily Avg</span><div className="text-lg font-black" style={{ color: COLORS.lightText }}>${(weeklyRevenue.reduce((a, b) => a + b, 0) / 7).toFixed(0)}</div></div>
+          </div>
+        </div>
+      </div>
+
+      {/* === SUBSCRIBER ANALYTICS === */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Subscribers by Tier */}
+        <div className="rounded-xl p-5" style={{ backgroundColor: COLORS.cardBg }}>
+          <h3 className="text-white font-bold mb-1">Subscribers by Tier</h3>
+          <p className="text-xs mb-4" style={{ color: COLORS.midGray }}>Breakdown of {totalSubs.toLocaleString()} active members</p>
+          <div className="space-y-3">
+            {Object.entries(subscribersByTier).map(([tier, count]) => (
+              <MiniBar key={tier} label={tier} value={count} max={totalSubs} color={tier === "Explorer" ? COLORS.teal : tier === "Scholar" ? COLORS.purple : "#F59E0B"} />
+            ))}
+          </div>
+          <div className="mt-4 pt-3 border-t grid grid-cols-2 gap-3" style={{ borderColor: "#2D2550" }}>
+            <div className="rounded-lg p-3 text-center" style={{ backgroundColor: "#150F28" }}>
+              <div className="text-lg font-black" style={{ color: COLORS.teal }}>{conversionRate}%</div>
+              <div className="text-xs" style={{ color: COLORS.midGray }}>Conversion Rate</div>
+            </div>
+            <div className="rounded-lg p-3 text-center" style={{ backgroundColor: "#150F28" }}>
+              <div className="text-lg font-black" style={{ color: churnRate > 5 ? "#DC2626" : COLORS.teal }}>{churnRate}%</div>
+              <div className="text-xs" style={{ color: COLORS.midGray }}>Monthly Churn</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Subscriber Growth */}
+        <div className="rounded-xl p-5" style={{ backgroundColor: COLORS.cardBg }}>
+          <h3 className="text-white font-bold mb-1">Subscriber Growth</h3>
+          <p className="text-xs mb-3" style={{ color: COLORS.midGray }}>New subscribers per day — last 7 days</p>
+          <Sparkline data={weeklySubscribers} color={COLORS.purple} />
+          <div className="flex justify-between mt-2">
+            {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d, i) => (
+              <span key={d} className="text-xs" style={{ color: i === 6 ? COLORS.purple : COLORS.midGray }}>{d}</span>
+            ))}
+          </div>
+          <div className="mt-4 pt-3 border-t grid grid-cols-2 gap-3" style={{ borderColor: "#2D2550" }}>
+            <div className="rounded-lg p-3 text-center" style={{ backgroundColor: "#150F28" }}>
+              <div className="text-lg font-black" style={{ color: COLORS.purple }}>${lifetimeValue}</div>
+              <div className="text-xs" style={{ color: COLORS.midGray }}>Avg Lifetime Value</div>
+            </div>
+            <div className="rounded-lg p-3 text-center" style={{ backgroundColor: "#150F28" }}>
+              <div className="text-lg font-black" style={{ color: COLORS.teal }}>${avgOrderValue}</div>
+              <div className="text-xs" style={{ color: COLORS.midGray }}>Avg Order Value</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* === PAYMENT & MERCH ROW === */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Payment Method Split */}
+        <div className="rounded-xl p-5" style={{ backgroundColor: COLORS.cardBg }}>
+          <h3 className="text-white font-bold mb-1">Payment Methods</h3>
+          <p className="text-xs mb-4" style={{ color: COLORS.midGray }}>Card vs Solana split</p>
+          <div className="flex h-6 rounded-full overflow-hidden mb-3">
+            <div style={{ width: `${paymentSplit.card}%`, backgroundColor: "#635BFF" }} />
+            <div style={{ width: `${paymentSplit.sol}%`, backgroundColor: COLORS.teal }} />
+          </div>
+          <div className="flex justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: "#635BFF" }} />
+              <span className="text-xs" style={{ color: COLORS.lightText }}>Card {paymentSplit.card}%</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS.teal }} />
+              <span className="text-xs" style={{ color: COLORS.lightText }}>SOL {paymentSplit.sol}%</span>
+            </div>
+          </div>
+          <div className="mt-4 pt-3 border-t" style={{ borderColor: "#2D2550" }}>
+            <div className="text-xs" style={{ color: COLORS.midGray }}>MRR (Monthly Recurring)</div>
+            <div className="text-xl font-black" style={{ color: COLORS.teal }}>${(revenueBySource.memberships * 0.92).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+          </div>
+        </div>
+
+        {/* Top Merch */}
+        <div className="rounded-xl p-5" style={{ backgroundColor: COLORS.cardBg }}>
+          <h3 className="text-white font-bold mb-1">Top Merchandise</h3>
+          <p className="text-xs mb-3" style={{ color: COLORS.midGray }}>Best sellers by units sold</p>
+          <div className="space-y-2">
+            {topMerch.map((item, i) => (
+              <div key={item.name} className="flex items-center gap-2">
+                <span className="text-xs font-bold w-5" style={{ color: i === 0 ? "#F59E0B" : COLORS.midGray }}>#{i + 1}</span>
+                <span className="text-sm flex-1 text-white">{item.name}</span>
+                <span className="text-sm font-bold" style={{ color: COLORS.teal }}>{item.sold}</span>
+              </div>
+            ))}
+          </div>
+          {orderStats && orderStats.revenue > 0 && (
+            <div className="mt-3 pt-3 border-t" style={{ borderColor: "#2D2550" }}>
+              <div className="text-xs" style={{ color: COLORS.midGray }}>Actual Merch Revenue</div>
+              <div className="text-lg font-black" style={{ color: "#F59E0B" }}>${orderStats.revenue.toFixed(2)}</div>
+            </div>
+          )}
+        </div>
+
+        {/* Top Content */}
+        <div className="rounded-xl p-5" style={{ backgroundColor: COLORS.cardBg }}>
+          <h3 className="text-white font-bold mb-1">Top Content</h3>
+          <p className="text-xs mb-3" style={{ color: COLORS.midGray }}>Most liked posts</p>
+          <div className="space-y-2">
+            {topPosts.map((post, i) => (
+              <div key={post.id} className="flex items-center gap-2">
+                <span className="text-xs font-bold w-5" style={{ color: i === 0 ? "#F59E0B" : COLORS.midGray }}>#{i + 1}</span>
+                <span className="text-xs flex-1 truncate" style={{ color: COLORS.lightText }}>{post.title}</span>
+                <span className="text-xs font-bold" style={{ color: "#DC2626" }}>♥ {post.likes}</span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 pt-3 border-t" style={{ borderColor: "#2D2550" }}>
+            <div className="text-xs" style={{ color: COLORS.midGray }}>Avg Likes / Post</div>
+            <div className="text-lg font-black" style={{ color: "#DC2626" }}>{Math.round(INITIAL_POSTS.reduce((s, p) => s + p.likes, 0) / INITIAL_POSTS.length)}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* === CREATE POST === */}
       <CreatePostForm creatorId={1} onPostCreated={onPostCreated} />
 
+      {/* === BLINK GENERATOR === */}
       <div className="rounded-xl p-5" style={{ backgroundColor: COLORS.cardBg }}>
         <h3 className="text-white font-bold mb-3">Blink Generator</h3>
         <div className="flex flex-col sm:flex-row gap-3">
@@ -497,19 +726,25 @@ function CreatorDashboard({ onPostCreated }: { onPostCreated: (post: Post) => vo
         )}
       </div>
 
+      {/* === RECENT TRANSACTIONS === */}
       <div className="rounded-xl p-5" style={{ backgroundColor: COLORS.cardBg }}>
         <h3 className="text-white font-bold mb-3">Recent Transactions</h3>
         <div className="space-y-2">
           {[
-            { wallet: "7xKp...3mNv", product: "Complete Bundle", amount: "+0.15 SOL", time: "2 min ago" },
-            { wallet: "9aRf...8yLp", product: "VIP Learner Tier", amount: "+0.09 SOL", time: "18 min ago" },
-            { wallet: "3bNw...5kQz", product: "Scholar Tier", amount: "+0.07 SOL", time: "1 hr ago" },
-            { wallet: "5dTx...2jMr", product: "Complete Bundle", amount: "+0.15 SOL", time: "3 hrs ago" },
+            { wallet: "7xKp...3mNv", product: "Complete Bundle", amount: "+0.15 SOL", time: "2 min ago", method: "sol" },
+            { wallet: "9aRf...8yLp", product: "VIP Learner Tier", amount: "+$12.42", time: "18 min ago", method: "card" },
+            { wallet: "3bNw...5kQz", product: "T-Shirt (Adult M)", amount: "+$24.99", time: "42 min ago", method: "card" },
+            { wallet: "2gHj...7pRs", product: "Scholar Tier", amount: "+0.07 SOL", time: "1 hr ago", method: "sol" },
+            { wallet: "5dTx...2jMr", product: "Flash Card Pack", amount: "+$14.99", time: "2 hrs ago", method: "card" },
+            { wallet: "8kLm...4nVw", product: "Complete Bundle", amount: "+0.15 SOL", time: "3 hrs ago", method: "sol" },
           ].map((tx, i) => (
             <div key={i} className="flex items-center justify-between py-2 border-b" style={{ borderColor: "#2D2550" }}>
-              <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs px-1.5 py-0.5 rounded font-mono" style={{ backgroundColor: tx.method === "sol" ? "#0D3B2E" : "#1E1245", color: tx.method === "sol" ? COLORS.teal : "#635BFF", fontSize: "10px" }}>
+                  {tx.method === "sol" ? "SOL" : "CARD"}
+                </span>
                 <span className="text-sm font-mono text-white">{tx.wallet}</span>
-                <span className="text-xs ml-2" style={{ color: COLORS.midGray }}>{tx.product}</span>
+                <span className="text-xs hidden sm:inline" style={{ color: COLORS.midGray }}>{tx.product}</span>
               </div>
               <div className="text-right">
                 <span className="text-sm font-bold" style={{ color: COLORS.teal }}>{tx.amount}</span>
