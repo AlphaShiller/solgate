@@ -1073,6 +1073,14 @@ function SolGateAppInner() {
     loadPosts();
   }, []);
 
+  // If wallet disconnects or changes away from owner, redirect off dashboard
+  useEffect(() => {
+    const ownerConnected = publicKey && publicKey.toBase58() === CREATOR_WALLET.toBase58();
+    if (view === "dashboard" && !ownerConnected) {
+      setView("storefront");
+    }
+  }, [publicKey, view]);
+
   // Handle ?canceled=true from Stripe
   useEffect(() => {
     if (searchParams.get("canceled") === "true") {
@@ -1108,11 +1116,14 @@ function SolGateAppInner() {
     setShowCart(true);
   };
 
+  // Only show Dashboard tab if connected wallet is the creator/owner
+  const isOwner = publicKey && publicKey.toBase58() === CREATOR_WALLET.toBase58();
+
   const views = [
     { key: "storefront" as const, label: "Storefront" },
     { key: "videos" as const, label: "Videos" },
     { key: "feed" as const, label: "Feed" },
-    { key: "dashboard" as const, label: "Dashboard" },
+    ...(isOwner ? [{ key: "dashboard" as const, label: "Dashboard" }] : []),
   ];
 
   return (
@@ -1465,7 +1476,7 @@ function SolGateAppInner() {
           </div>
         )}
 
-        {view === "dashboard" && (
+        {view === "dashboard" && isOwner && (
           <CreatorDashboard onPostCreated={handlePostCreated} />
         )}
       </div>
