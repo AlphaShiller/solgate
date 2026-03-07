@@ -10,12 +10,31 @@ function ensureDataDir() {
   if (!fs.existsSync(ORDERS_FILE)) fs.writeFileSync(ORDERS_FILE, "[]");
 }
 
-function getOrders() {
+interface OrderRecord {
+  id: string;
+  items: { name: string; price: number; quantity: number; size?: string; merchId?: string }[];
+  shipping: { name: string; address: string; city: string; state: string; zip: string };
+  email: string;
+  paymentMethod: string;
+  total: number;
+  status: string;
+  labelGenerated: boolean;
+  createdAt: string;
+  // Shipment fields
+  weight?: string;
+  dimensions?: string;
+  requirements?: string;
+  shipmentStatus?: string;
+  trackingNumber?: string;
+  notes?: string;
+}
+
+function getOrders(): OrderRecord[] {
   ensureDataDir();
   return JSON.parse(fs.readFileSync(ORDERS_FILE, "utf-8"));
 }
 
-function saveOrders(orders: unknown[]) {
+function saveOrders(orders: OrderRecord[]) {
   ensureDataDir();
   fs.writeFileSync(ORDERS_FILE, JSON.stringify(orders, null, 2));
 }
@@ -34,7 +53,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    const order = {
+    const order: OrderRecord = {
       id: `ORD-${Date.now()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
       items,
       shipping,
@@ -44,6 +63,13 @@ export async function POST(req: NextRequest) {
       status: "confirmed",
       labelGenerated: false,
       createdAt: new Date().toISOString(),
+      // Initialize shipment fields
+      weight: "",
+      dimensions: "",
+      requirements: "",
+      shipmentStatus: "Pending",
+      trackingNumber: "",
+      notes: "",
     };
 
     const orders = getOrders();
@@ -53,5 +79,36 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ order });
   } catch {
     return NextResponse.json({ error: "Failed to create order" }, { status: 500 });
+  }
+}
+
+// PATCH — update shipment fields on an existing order
+export async function PATCH(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { orderId, ...updates } = body;
+
+    if (!orderId) {
+      return NextResponse.json({ error: "orderId is required" }, { status: 400 });
+    }
+
+    const allowedFields = ["weight", "dimensions", "requirements", "shipmentStatus", "trackingNumber", "notes"];
+    const orders = getOrders();
+    const idx = orders.findIndex((o) => o.id === orderId);
+
+    if (idx === -1) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+
+    for (const field of allowedFields) {
+      if (field in updates) {
+        (orders[idx] as Record<string, unknown>)[field] = updates[field];
+      }
+    }
+
+    saveOrders(orders);
+    return NextResponse.json({ order: orders[idx] });
+  } catch {
+    return NextResponse.json({ error: "Failed to update order" }, { status: 500 });
   }
 }

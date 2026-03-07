@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { WalletModal, WalletModalButton, useWalletModal } from "@/components/WalletModal";
 import PostFeed from "@/components/PostFeed";
 import CreatePostForm from "@/components/CreatePostForm";
+import ShipmentsTable from "@/components/ShipmentsTable";
 import { useSubscriptions } from "@/hooks/useSubscriptions";
 import { COLORS } from "@/utils/colors";
 import { Post, TierName } from "@/types";
@@ -1030,7 +1031,7 @@ function NewsletterSection() {
 // --- Main App ---
 
 function SolGateAppInner() {
-  const [view, setView] = useState<"storefront" | "videos" | "feed" | "dashboard">("storefront");
+  const [view, setView] = useState<"storefront" | "videos" | "feed" | "dashboard" | "shipments">("storefront");
   const [purchases, setPurchases] = useState<{ id: string; signature?: string }[]>([]);
   const [posts, setPosts] = useState<Post[]>(INITIAL_POSTS);
   const [canceledNotice, setCanceledNotice] = useState(false);
@@ -1076,7 +1077,7 @@ function SolGateAppInner() {
   // If wallet disconnects or changes away from owner, redirect off dashboard
   useEffect(() => {
     const ownerConnected = publicKey && publicKey.toBase58() === CREATOR_WALLET.toBase58();
-    if (view === "dashboard" && !ownerConnected) {
+    if ((view === "dashboard" || view === "shipments") && !ownerConnected) {
       setView("storefront");
     }
   }, [publicKey, view]);
@@ -1123,7 +1124,10 @@ function SolGateAppInner() {
     { key: "storefront" as const, label: "Storefront" },
     { key: "videos" as const, label: "Videos" },
     { key: "feed" as const, label: "Feed" },
-    ...(isOwner ? [{ key: "dashboard" as const, label: "Dashboard" }] : []),
+    ...(isOwner ? [
+      { key: "shipments" as const, label: "Shipments" },
+      { key: "dashboard" as const, label: "Dashboard" },
+    ] : []),
   ];
 
   return (
@@ -1474,6 +1478,10 @@ function SolGateAppInner() {
               onSubscribeClick={() => setView("storefront")}
             />
           </div>
+        )}
+
+        {view === "shipments" && isOwner && (
+          <ShipmentsTable />
         )}
 
         {view === "dashboard" && isOwner && (
