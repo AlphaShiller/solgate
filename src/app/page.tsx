@@ -124,6 +124,23 @@ const creators = [
   },
 ];
 
+// --- Videos ---
+interface Video {
+  id: string;
+  title: string;
+  youtubeId: string;
+  featured?: boolean;
+}
+
+const VIDEOS: Video[] = [
+  { id: "v1", title: "Thomas Edison: The Boy Who Never Gave Up", youtubeId: "VneG4el6u-0", featured: true },
+  { id: "v2", title: "William Shakespeare for Kids: The Boy Who Created 1,700 Words", youtubeId: "IPRtomB2XjM" },
+  { id: "v3", title: "Steamboats on the Mississippi River!", youtubeId: "1zxoOKK3a8k" },
+  { id: "v4", title: "Industrial Revolution Kids Version", youtubeId: "mVKfxz8iwQ4" },
+  { id: "v5", title: "Albert Einstein for Kids: The Power of Curiosity", youtubeId: "HsDdHMPIC5s" },
+  { id: "v6", title: "The Titanic Story for Kids: Safety and Respect", youtubeId: "KrEHiIblWuo" },
+];
+
 // --- Components ---
 
 function BlinkButton({ product, onPurchase, openWalletModal }: { product: Product; onPurchase: (p: Product, sig?: string) => void; openWalletModal: () => void }) {
@@ -486,10 +503,11 @@ function CreatorDashboard({ onPostCreated }: { onPostCreated: (post: Post) => vo
 // --- Main App ---
 
 function SolGateAppInner() {
-  const [view, setView] = useState<"storefront" | "feed" | "dashboard">("storefront");
+  const [view, setView] = useState<"storefront" | "videos" | "feed" | "dashboard">("storefront");
   const [purchases, setPurchases] = useState<{ id: string; signature?: string }[]>([]);
   const [posts, setPosts] = useState<Post[]>(INITIAL_POSTS);
   const [canceledNotice, setCanceledNotice] = useState(false);
+  const [selectedVideo, setSelectedVideo] = useState<Video>(VIDEOS[0]);
   const walletModal = useWalletModal();
   const { publicKey } = useWallet();
   const searchParams = useSearchParams();
@@ -527,6 +545,7 @@ function SolGateAppInner() {
 
   const views = [
     { key: "storefront" as const, label: "Storefront" },
+    { key: "videos" as const, label: "Videos" },
     { key: "feed" as const, label: "Feed" },
     { key: "dashboard" as const, label: "Dashboard" },
   ];
@@ -592,6 +611,32 @@ function SolGateAppInner() {
               </div>
             )}
 
+            {/* Featured Video */}
+            <div>
+              <h2 className="text-lg font-bold text-white mb-4">Featured Video</h2>
+              <div className="rounded-xl overflow-hidden border" style={{ borderColor: "#2D2550" }}>
+                <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
+                  <iframe
+                    className="absolute inset-0 w-full h-full"
+                    src={`https://www.youtube.com/embed/${VIDEOS.find(v => v.featured)?.youtubeId || VIDEOS[0].youtubeId}`}
+                    title={VIDEOS.find(v => v.featured)?.title || VIDEOS[0].title}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                </div>
+                <div className="px-4 py-3" style={{ backgroundColor: COLORS.cardBg }}>
+                  <p className="text-white font-semibold text-sm">{VIDEOS.find(v => v.featured)?.title || VIDEOS[0].title}</p>
+                  <button
+                    onClick={() => setView("videos")}
+                    className="text-xs mt-1 cursor-pointer hover:underline"
+                    style={{ color: COLORS.teal }}
+                  >
+                    Browse all {VIDEOS.length} videos →
+                  </button>
+                </div>
+              </div>
+            </div>
+
             {/* Products */}
             <div>
               <h2 className="text-lg font-bold text-white mb-4">Products & Downloads</h2>
@@ -630,6 +675,78 @@ function SolGateAppInner() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {view === "videos" && (
+          <div className="space-y-6">
+            {/* Now Playing */}
+            <div>
+              <h2 className="text-xl font-black text-white mb-1">Now Playing</h2>
+              <p className="text-sm mb-4" style={{ color: COLORS.lightText }}>{selectedVideo.title}</p>
+              <div className="rounded-xl overflow-hidden border" style={{ borderColor: "#2D2550" }}>
+                <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
+                  <iframe
+                    className="absolute inset-0 w-full h-full"
+                    src={`https://www.youtube.com/embed/${selectedVideo.youtubeId}?autoplay=1`}
+                    title={selectedVideo.title}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Video Grid */}
+            <div>
+              <h2 className="text-lg font-bold text-white mb-4">All Videos ({VIDEOS.length})</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {VIDEOS.map((video) => (
+                  <button
+                    key={video.id}
+                    onClick={() => setSelectedVideo(video)}
+                    className="rounded-xl overflow-hidden border text-left transition-all cursor-pointer hover:border-purple-500"
+                    style={{
+                      backgroundColor: selectedVideo.id === video.id ? "#1E1245" : COLORS.cardBg,
+                      borderColor: selectedVideo.id === video.id ? COLORS.purple : "#2D2550",
+                    }}
+                  >
+                    <div className="relative">
+                      <img
+                        src={`https://img.youtube.com/vi/${video.youtubeId}/mqdefault.jpg`}
+                        alt={video.title}
+                        className="w-full aspect-video object-cover"
+                      />
+                      {selectedVideo.id === video.id && (
+                        <div className="absolute inset-0 flex items-center justify-center" style={{ backgroundColor: "rgba(124, 58, 237, 0.3)" }}>
+                          <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: "rgba(0,0,0,0.6)" }}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
+                              <rect x="6" y="4" width="4" height="16" />
+                              <rect x="14" y="4" width="4" height="16" />
+                            </svg>
+                          </div>
+                        </div>
+                      )}
+                      {selectedVideo.id !== video.id && (
+                        <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity" style={{ backgroundColor: "rgba(0,0,0,0.4)" }}>
+                          <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: "rgba(124, 58, 237, 0.9)" }}>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                              <polygon points="5 3 19 12 5 21 5 3" />
+                            </svg>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <div className="px-3 py-2.5">
+                      <p className="text-sm font-semibold text-white leading-tight">{video.title}</p>
+                      {video.featured && (
+                        <span className="inline-block text-xs mt-1 px-2 py-0.5 rounded-full" style={{ backgroundColor: "#2D1B69", color: "#C4B5FD" }}>Featured</span>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         )}
 
