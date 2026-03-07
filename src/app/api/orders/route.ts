@@ -100,9 +100,15 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
+    const order = orders[idx];
     for (const field of allowedFields) {
       if (field in updates) {
-        (orders[idx] as Record<string, unknown>)[field] = updates[field];
+        if (field === "weight") order.weight = updates[field];
+        else if (field === "dimensions") order.dimensions = updates[field];
+        else if (field === "requirements") order.requirements = updates[field];
+        else if (field === "shipmentStatus") order.shipmentStatus = updates[field];
+        else if (field === "trackingNumber") order.trackingNumber = updates[field];
+        else if (field === "notes") order.notes = updates[field];
       }
     }
 
