@@ -16,7 +16,7 @@ export default function ChatWidget() {
       id: "welcome",
       role: "assistant",
       content:
-        "Hey! I'm SolGate Assistant. I can help with questions about subscriptions, payments, or help you brainstorm content ideas. What can I help with?",
+        "Yo! I'm Sol, your SolGate sidekick. Need help with subscriptions, payments, or want to brainstorm some killer content ideas? I'm here and I don't take coffee breaks. What's up?",
     },
   ]);
   const [input, setInput] = useState("");
