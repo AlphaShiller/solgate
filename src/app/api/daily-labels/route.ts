@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 
-const ORDERS_FILE = path.join(process.cwd(), "data", "orders.json");
-const LABELS_DIR = path.join(process.cwd(), "public", "labels");
+const DATA_DIR = "/tmp/solgate-data";
+const ORDERS_FILE = path.join(DATA_DIR, "orders.json");
+const LABELS_DIR = path.join(DATA_DIR, "labels");
 
 interface OrderItem {
   name: string;

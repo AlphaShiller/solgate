@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 
-const POSTS_FILE = path.join(process.cwd(), "data", "posts.json");
-const NEWSLETTER_FILE = path.join(process.cwd(), "data", "newsletter-subscribers.json");
+const DATA_DIR = "/tmp/solgate-data";
+const POSTS_FILE = path.join(DATA_DIR, "posts.json");
+const NEWSLETTER_FILE = path.join(DATA_DIR, "newsletter-subscribers.json");
 
 function ensureDataDir() {
   const dir = path.dirname(POSTS_FILE);
@@ -104,7 +105,7 @@ export async function POST(req: NextRequest) {
       console.log(`[EMAIL PAYLOAD]`, JSON.stringify({ ...emailPayload, recipientCount: subscribers.length }, null, 2));
 
       // Store notification record for dashboard tracking
-      const notificationsFile = path.join(process.cwd(), "data", "email-notifications.json");
+      const notificationsFile = path.join(DATA_DIR, "email-notifications.json");
       let notifications: unknown[] = [];
       try {
         if (fs.existsSync(notificationsFile)) {

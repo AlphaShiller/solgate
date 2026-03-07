@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 
-const ORDERS_FILE = path.join(process.cwd(), "data", "orders.json");
+const DATA_DIR = "/tmp/solgate-data";
+const ORDERS_FILE = path.join(DATA_DIR, "orders.json");
 
 function ensureDataDir() {
   const dir = path.dirname(ORDERS_FILE);

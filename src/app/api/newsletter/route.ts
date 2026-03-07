@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 
-const SUBSCRIBERS_FILE = path.join(process.cwd(), "data", "newsletter-subscribers.json");
+const DATA_DIR = "/tmp/solgate-data";
+const SUBSCRIBERS_FILE = path.join(DATA_DIR, "newsletter-subscribers.json");
 
 function ensureDataDir() {
   const dir = path.dirname(SUBSCRIBERS_FILE);
